@@ -9,11 +9,11 @@ from loguru import logger
 
 from commands import Users
 
-setproctitle.setproctitle("manager-fl")
-
 import json
 
 logging.basicConfig(level=logging.INFO)
+
+from fateslist.utils import etrace
 
 class FatesManagerBot(commands.Bot):
     async def on_command_error(self, *args, **kwargs):
@@ -44,5 +44,9 @@ fates.load_extension("jishaku")
 async def on_ready():
     fates.add_cog(Users(fates))
     logger.info("Init done")
+
+@fates.event
+async def on_command_error(ctx, err):
+    print(etrace(err))
 
 fates.run(fates.config["token"])

@@ -51,26 +51,27 @@ class Users(commands.Cog):
 
         hash = hmac.new(
             self.bot.config["vote_token_access_key"].encode(),
-            f"{inter.author.id}/{bot.id}/{ts}/Shadowsight",
+            f"{inter.author.id}/{bot.id}/{ts}/Shadowsight".encode(),
             sha512
         )
 
         async with aiohttp.ClientSession() as sess:
             async with sess.get(
                 f"https://api.fateslist.xyz/api/dragon/users/{inter.author.id}/bots/{bot.id}/ts/{ts}/_vote-token",
-                headers={"Authorization": "Vote " + hash.hexdigest()}
+                headers={"Authorization": hash.hexdigest()}
             ) as resp:
                 if resp.status != 200:
                     return await inter.send(
-                        "Failed to get vote token!"
+                        f"Failed to get vote token with status {resp.status}!"
                     )
                 token = await resp.json()
+                print(token)
         
             async with sess.patch(
                 f"https://api.fateslist.xyz/api/dragon/bots/{bot.id}/votes",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": token["ctx"],
+                    "Authorization": "Vote " + token["ctx"],
                     "Mistystar": "1"
                 },
                 json={"user_id": str(inter.author.id), "test": False}
