@@ -6,7 +6,7 @@ from fateslist.classes import UserState, BotState, Status, LongDescType
 from fateslist import BotClient, UserClient, APIResponse
 from fateslist.utils import etrace 
 from fateslist.system import SystemClient
-from discord import Color, Embed, User, ButtonStyle
+from discord import Color, Embed, User, ButtonStyle, Client
 from discord.ui import Button, View
 from discord.ext import commands, tasks
 
@@ -14,9 +14,28 @@ class Users(commands.Cog):
     """Commands made specifically for users to use"""
 
     def __init__(self, bot):
-        self.bot = bot
+        self.bot: Client = bot
         self.msg = None
         self.statloop.start()
+        self.vote_reminder.start()
+    
+    # Vote reminder handler
+    @tasks.loop(minutes=1)
+    async def vote_reminder(self):
+        sc = SystemClient()
+        vote_reminders = await sc.get_vote_reminders()
+        for user in vote_reminders["reminders"]:
+            channel_id = user["vote_reminder_channel"]
+            if channel_id:
+                channel = self.bot.get_channel(channel_id)
+            else:
+                # TODO: Make this a config option
+                channel = self.bot.get_channel(939123825885474898)
+            for bot in user["can_vote"]:
+                check = await self.bot.redis.get(f"vote_reminder_ack:{user['user_id']}-{bot}")
+                if not check:
+                    await channel.send(f"Hey <@{user['user_id']}>, you can now vote for <@{bot}> ({bot}) or did you forget?\n\n*This will keep repeating every 6 hours until a vote*")
+                    await self.bot.redis.set(f"vote_reminder_ack:{user['user_id']}-{bot}", "0", ex=60*60*6)
 
     @commands.command(
         name="catid",
@@ -78,7 +97,19 @@ class Users(commands.Cog):
                 if res.status >= 400:
                     json = await res.json()
                     return await inter.send(f'{json["reason"]}\n**Status Code:** {res.status}')
-                return await inter.send("Successfully voted for this bot!")
+            
+            await inter.send(
+                "Successfully voted for this bot!"
+            )
+
+            class VoteReminderView(View):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.add_item(Button(url=f"https://fateslist.xyz/bot/{bot.id}/reminders", label="Remind Me!"))
+
+            await inter.send("**Want vote reminders?**", view=VoteReminderView())
+
+
 
     @commands.command(name="chanid")
     async def chanid(self, inter):
@@ -136,6 +167,7 @@ class Users(commands.Cog):
 
     def cog_unload(self):
         self.statloop.cancel()
+        self.vote_reminder.cancel()
 
     @staticmethod
     async def _catid(inter):

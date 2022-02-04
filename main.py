@@ -2,6 +2,8 @@ import asyncio
 import logging
 import os
 
+import aioredis
+
 import discord
 import setproctitle
 from discord.ext import commands
@@ -42,6 +44,7 @@ fates.load_extension("jishaku")
 
 @fates.event
 async def on_ready():
+    fates.redis = await aioredis.from_url("redis://localhost:1001", db=2)
     fates.add_cog(Users(fates))
     logger.info("Init done")
 
