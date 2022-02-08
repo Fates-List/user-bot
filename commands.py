@@ -43,7 +43,7 @@ class Users(commands.Cog):
                 if not check:
                     await self.bot.redis.set(f"vote_reminder_ack:{user['user_id']}-{bot}", "0", ex=60*60*6)
                     has_one_pending_bot = True
-                bot_str += f", <@{bot}> ({bot})" if i < len(user["can_vote"]) - 1 else f" and <@{bot}> ({bot})"
+                bot_str += f"<@{bot}> ({bot}), " if i < len(user["can_vote"]) - 1 else f" and <@{bot}> ({bot})"
             
             if has_one_pending_bot:
                 await channel.send(f"Hey <@{user['user_id']}>, you can now vote for {bot_str} or did you forget?\n\n*This will keep repeating every 6 hours until a vote*")
